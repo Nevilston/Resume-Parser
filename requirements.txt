@@ -1,0 +1,6 @@
+openai
+sentence-transformers
+pdfplumber
+python-docx
+python-dotenv
+rapidfuzz
