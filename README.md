@@ -1,28 +1,29 @@
 # 🧠 AI Resume Shortlister 🚀
 
-A powerful Python-based AI tool to automatically evaluate and shortlist resumes based on job descriptions using semantic similarity, fuzzy skill matching, and synonym support via WordNet. 
+A Python-based AI tool to automatically evaluate and shortlist resumes based on job descriptions using semantic similarity and skill matching.
 
 ---
 
 ## 📌 Features
 
 ✅ **Semantic Matching**  
-Compare resume and job description context using Sentence-BERT embeddings.
+- Compares resume and JD using Sentence-BERT embeddings
 
 ✅ **Skill Extraction & Matching**  
-- Uses GPT & regex-based parsing  
-- Normalizes skill names and aliases  
-- Supports fuzzy and synonym-based matching
+- Extracts skills using GPT + regex rules  
+- Matches technical and soft skills
 
 ✅ **Shortlisting Logic**  
-Combines semantic score and skill match percentage to compute a final score with thresholds for:
-- High
-- Medium
-- Low
-- Very Low
+Scores candidates based on:
+- Semantic similarity
+- Skill match percentage
 
-✅ **Synonym Support (via WordNet)**  
-Matches skills with similar meaning (e.g., “teamwork” ≈ “team work”).
+```
+final_score = 0.6 * semantic_score + 0.4 * skill_match_pct
+```
+
+✅ **Synonym Matching**  
+Uses WordNet to recognize skill aliases (e.g., “team work” ≈ “teamwork”).
 
 ---
 
@@ -30,78 +31,112 @@ Matches skills with similar meaning (e.g., “teamwork” ≈ “team work”).
 
 ```
 .
-├── main.py                      # 🔁 Entry point
-├── resume_parser.py            # 📄 PDF/Text resume extractor
-├── jd_processor.py             # 🧾 Cleans and formats JD text
-├── resume_shortlister.py       # 🧠 Core logic: scoring + shortlisting
+├── api.py                      # 🔗 Flask API endpoint
+├── main.py                     # 🔁 Processing logic (resume + JD)
+├── resume_parser.py            # 📄 Resume parsing (PDF/DOCX)
+├── jd_processor.py             # 🧾 JD cleaner
+├── resume_shortlister.py       # 🧠 Matching + Scoring
 ├── openai_skill_extractor.py   # 🤖 GPT-based skill extraction
-├── openai_config.py            # 🔐 OpenAI API key loading
-├── .env                        # 🔐 Contains OPENAI_API_KEY
-├── requirements.txt            # 📦 Dependencies
-└── README.md                   # 📘 This file
+├── openai_config.py            # 🔐 API key loader
+├── requirements.txt            # 📦 Python dependencies
+└── .env                        # 🔐 Your OpenAI key
 ```
 
 ---
 
 ## ⚙️ How It Works
 
-1. **Parse Resume & JD**  
-   Extracts plain text and structured skills from both.
+1. **Resume & JD Parsing**  
+   Extract plain text from uploaded resume and JD input.
 
 2. **Skill Extraction**  
-   Uses GPT + rule-based keywords to find relevant technical and soft skills.
+   Identify relevant skills using GPT and regex patterns.
 
 3. **Matching & Scoring**
-   - Semantic similarity via `SentenceTransformer`
-   - Fuzzy skill match (`RapidFuzz`)
-   - Synonym match via WordNet
+   - Semantic similarity (via Sentence-BERT)
+   - Skill match percentage
+   - Synonym-aware comparison
 
-4. **Shortlisting Decision**
-   ```python
-   final_score = 0.6 * semantic_score + 0.4 * skill_match_pct
-   ```
+4. **Shortlist Decision**
+   Final JSON includes:
+   - final score
+   - matched/missing skills
+   - semantic score
+   - match level
 
 ---
 
 ## 🚀 Getting Started
 
-### 1️⃣ Clone the repo
+### 1️⃣ Clone the Repo
+
 ```bash
 git clone https://github.com/your-username/ai-resume-shortlister.git
 cd ai-resume-shortlister
 ```
 
-### 2️⃣ Install dependencies
+### 2️⃣ Install Dependencies
+
 ```bash
 pip install -r requirements.txt
 ```
 
-### 3️⃣ Setup your OpenAI API Key
-Create a `.env` file with the following:
-```env
-OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxx
-```
+### 3️⃣ Set Up OpenAI Key
 
-### 4️⃣ Run the app
-```bash
-python3 main.py
+Create a `.env` file with your OpenAI key:
+
+```env
+OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxx
 ```
 
 ---
 
-## 📊 Sample Output
+## 🔗 Using the Flask API
 
+### ▶️ Start the API
+
+```bash
+python3 api.py
 ```
-✅ Shortlist Result:
 
+By default, it runs at: `http://localhost:5000`
+
+---
+
+### 📬 Endpoint: `/api/shortlist`
+
+**Method**: `POST`  
+**Content Type**: `multipart/form-data`  
+**Params**:
+
+| Key     | Type  | Required | Description             |
+|---------|-------|----------|-------------------------|
+| `resume`| File  | ✅       | Resume PDF or DOCX      |
+| `jd`    | Text  | ✅       | Job description content |
+
+---
+
+### 🔧 Example (Postman)
+
+- Method: `POST`
+- URL: `http://localhost:5000/api/shortlist`
+- Body → `form-data`:
+  - `resume`: Upload file (PDF or DOCX)
+  - `jd`: Paste job description text
+
+---
+
+### 🧪 Sample JSON Response
+
+```json
 {
-  'final_score': 58.91,
-  'shortlisted': True,
-  'match_level': 'low',
-  'semantic_score': 40.4,
-  'skill_match_pct': 86.67,
-  'matched_skills': [...],
-  'missing_skills': [...]
+  "final_score": 58.91,
+  "shortlisted": true,
+  "match_level": "low",
+  "semantic_score": 40.4,
+  "skill_match_pct": 86.67,
+  "matched_skills": ["python", "scikit-learn", "tensorflow"],
+  "missing_skills": ["aws", "mongodb"]
 }
 ```
 
@@ -110,18 +145,18 @@ python3 main.py
 ## 🧠 Tech Stack
 
 - Python 3.8+
-- [SentenceTransformers](https://www.sbert.net/)
-- [OpenAI GPT](https://platform.openai.com/)
-- [RapidFuzz](https://github.com/maxbachmann/RapidFuzz)
-- [NLTK WordNet](https://www.nltk.org/howto/wordnet.html)
-- PyMuPDF (PDF parsing)
+- Flask (API framework)
+- OpenAI (skill extraction)
+- SentenceTransformers (semantic similarity)
+- pdfplumber / python-docx (resume parsing)
+- RapidFuzz (fuzzy skill matching)
+- WordNet (synonyms)
 
 ---
 
 ## 🙌 Contributing
 
-Feel free to fork and open PRs to add:
-- Streamlit Web UI
-- JD parsing with LLMs
----
-
+PRs are welcome for:
+- UI frontend (e.g., Streamlit)
+- Enhanced JD parsing
+- Bulk resume ranking
