@@ -1,10 +1,12 @@
+import os
+import re
+import tempfile
 from openai_config import configure_openai
 from openai import OpenAI
 from resume_parser import ResumeParser
 from jd_processor import JDProcessor
 from openai_skill_extractor import OpenAISkillExtractor
 from resume_shortlister import ResumeShortlister
-import re
 
 def extract_known_skills_from_resume_text(resume_text: str) -> list:
     # Match TECHNICAL SKILLS, PROJECTS, SOFT SKILLS, and EXPERIENCE sections
@@ -23,54 +25,68 @@ def extract_known_skills_from_resume_text(resume_text: str) -> list:
         if match:
             extracted_text += match.group() + "\n"
 
-    # Explicit splitting of comma-separated and bullet-separated lines
+    # Split text by bullets, commas, or line breaks
     inline_skills = re.split(r"[•,\n]", extracted_text)
 
-    # Common skill and domain keywords — expanded and corrected
+    # Match keywords using regex
     keywords = re.findall(
         r"\b(?:TensorFlow|Deep Learning|Machine Learning|Predictive Models|Python|Mask RCNN|Greenhouse Gas|GHG|Raspberry Pi|AWS|MongoDB|Linux|Windows|Mac|MacOS|Communication|Team Work|Object Detection|Detectron|Scikit-Learn|Numpy|Pandas|Matplotlib|C\+\+|Java|SQL|R|Problem Solving)\b",
         extracted_text,
         re.IGNORECASE
     )
 
-    # Normalize for matching, keep casing for readability
+    # Normalize keywords
     skills = [k.strip().lower().replace("macos", "mac") for k in keywords]
     return list(set(skills))
 
+
 def process_resume(resume_file, jd_text):
-    # 🔧 Load .env and OpenAI client
+    # Load OpenAI config
     configure_openai()
     client = OpenAI()
 
-    # 🔧 Initialize all components
+    # Initialize components
     resume_parser = ResumeParser()
     jd_processor = JDProcessor()
     skill_extractor = OpenAISkillExtractor(client=client)
     shortlister = ResumeShortlister()
 
-    # 🔍 Parse resume and JD
-    resume_text = resume_parser.parse(resume_file)
-    jd_clean = jd_processor.clean(jd_text)
+    # Determine if resume_file is a path or Flask FileStorage
+    if hasattr(resume_file, 'save'):
+        suffix = ".pdf" if resume_file.filename.endswith(".pdf") else ".docx"
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+            resume_file.save(tmp.name)
+            resume_path = tmp.name
+    else:
+        resume_path = resume_file  # CLI mode
 
-    # 🔍 Extract skills from both resume and JD
-    structured_resume_skills = extract_known_skills_from_resume_text(resume_text)
-    gpt_resume_skills = skill_extractor.extract_skills(resume_text)
-    resume_skills = list(set(structured_resume_skills + gpt_resume_skills))
+    try:
+        # Parse and clean
+        resume_text = resume_parser.parse(resume_path)
+        jd_clean = jd_processor.clean(jd_text)
 
-    jd_skills = skill_extractor.extract_skills(jd_clean)
+        # Extract skills
+        structured_resume_skills = extract_known_skills_from_resume_text(resume_text)
+        gpt_resume_skills = skill_extractor.extract_skills(resume_text)
+        resume_skills = list(set(structured_resume_skills + gpt_resume_skills))
+        jd_skills = skill_extractor.extract_skills(jd_clean)
 
-    # 🧠 Evaluate match
-    result = shortlister.evaluate(resume_text, jd_clean, resume_skills, jd_skills)
+        # Evaluate match
+        result = shortlister.evaluate(resume_text, jd_clean, resume_skills, jd_skills)
+        return result
 
-    return result
+    finally:
+        # Delete temp file in API mode
+        if hasattr(resume_file, 'save') and os.path.exists(resume_path):
+            os.remove(resume_path)
+
 
 if __name__ == '__main__':
     import argparse
-    # This part is for standalone execution and testing
     parser = argparse.ArgumentParser(description="Resume Shortlister")
     parser.add_argument("resume_file", help="Path to the resume file")
     args = parser.parse_args()
-    resume_file = args.resume_file
+
     jd_text = """
     🎯 Job Title: AI Intern – Python, TensorFlow, Projects
 
@@ -93,6 +109,7 @@ if __name__ == '__main__':
     - Soft Skills: Problem Solving, Team Work, Communication
     - Internship or project experience in AI-based GHG
     """
-    result = process_resume(resume_file, jd_text)
+
+    result = process_resume(args.resume_file, jd_text)
     print("\n✅ Shortlist Result:\n")
     print(result)
