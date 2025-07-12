@@ -4,3 +4,6 @@ pdfplumber
 python-docx
 python-dotenv
 rapidfuzz
+Flask
+requests
+nltk
