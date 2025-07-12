@@ -6,7 +6,6 @@ from openai_skill_extractor import OpenAISkillExtractor
 from resume_shortlister import ResumeShortlister
 import re
 
-
 def extract_known_skills_from_resume_text(resume_text: str) -> list:
     # Match TECHNICAL SKILLS, PROJECTS, SOFT SKILLS, and EXPERIENCE sections
     patterns = [
@@ -38,56 +37,62 @@ def extract_known_skills_from_resume_text(resume_text: str) -> list:
     skills = [k.strip().lower().replace("macos", "mac") for k in keywords]
     return list(set(skills))
 
+def process_resume(resume_file, jd_text):
+    # 🔧 Load .env and OpenAI client
+    configure_openai()
+    client = OpenAI()
 
-# 🔧 Load .env and OpenAI client
-configure_openai()
-client = OpenAI()
+    # 🔧 Initialize all components
+    resume_parser = ResumeParser()
+    jd_processor = JDProcessor()
+    skill_extractor = OpenAISkillExtractor(client=client)
+    shortlister = ResumeShortlister()
 
-# 🔧 Initialize all components
-resume_parser = ResumeParser()
-jd_processor = JDProcessor()
-skill_extractor = OpenAISkillExtractor(client=client)
-shortlister = ResumeShortlister()
+    # 🔍 Parse resume and JD
+    resume_text = resume_parser.parse(resume_file)
+    jd_clean = jd_processor.clean(jd_text)
 
-# 📄 File and JD Text
-resume_file = "/Users/nevilston/Downloads/Deoston-Resume.pdf"
-jd_text = """
-🎯 Job Title: AI Intern – Python, TensorFlow, Projects
+    # 🔍 Extract skills from both resume and JD
+    structured_resume_skills = extract_known_skills_from_resume_text(resume_text)
+    gpt_resume_skills = skill_extractor.extract_skills(resume_text)
+    resume_skills = list(set(structured_resume_skills + gpt_resume_skills))
 
-We are looking for a recent graduate or final-year student with a strong academic background in Artificial Intelligence. The ideal candidate should have hands-on experience with Python programming and machine learning tools, and have completed academic or internship projects involving model development.
+    jd_skills = skill_extractor.extract_skills(jd_clean)
 
-🔧 Responsibilities:
-- Build predictive models using Scikit-Learn and TensorFlow
-- Analyze datasets using Pandas, NumPy, and Matplotlib
-- Apply machine learning in areas like greenhouse gas (GHG) emissions or plant disease detection
-- Collaborate with mentors in developing model pipelines
-- Work in Linux-based environments with basic AWS and MongoDB knowledge
+    # 🧠 Evaluate match
+    result = shortlister.evaluate(resume_text, jd_clean, resume_skills, jd_skills)
 
-✅ Required Skills:
-- Programming: Python, R, Java, C++
-- Machine Learning: TensorFlow, Scikit-Learn
-- Data Tools: Numpy, Pandas, Matplotlib
-- Databases: SQL, basic MongoDB
-- Cloud: Basic AWS
-- OS: Linux, Windows, Mac
-- Soft Skills: Problem Solving, Team Work, Communication
-- Internship or project experience in AI-based GHG 
-"""
+    return result
 
-# 🔍 Parse resume and JD
-resume_text = resume_parser.parse(resume_file)
-jd_clean = jd_processor.clean(jd_text)
+if __name__ == '__main__':
+    import argparse
+    # This part is for standalone execution and testing
+    parser = argparse.ArgumentParser(description="Resume Shortlister")
+    parser.add_argument("resume_file", help="Path to the resume file")
+    args = parser.parse_args()
+    resume_file = args.resume_file
+    jd_text = """
+    🎯 Job Title: AI Intern – Python, TensorFlow, Projects
 
-# 🔍 Extract skills from both resume and JD
-structured_resume_skills = extract_known_skills_from_resume_text(resume_text)
-gpt_resume_skills = skill_extractor.extract_skills(resume_text)
-resume_skills = list(set(structured_resume_skills + gpt_resume_skills))
+    We are looking for a recent graduate or final-year student with a strong academic background in Artificial Intelligence. The ideal candidate should have hands-on experience with Python programming and machine learning tools, and have completed academic or internship projects involving model development.
 
-jd_skills = skill_extractor.extract_skills(jd_clean)
+    🔧 Responsibilities:
+    - Build predictive models using Scikit-Learn and TensorFlow
+    - Analyze datasets using Pandas, NumPy, and Matplotlib
+    - Apply machine learning in areas like greenhouse gas (GHG) emissions or plant disease detection
+    - Collaborate with mentors in developing model pipelines
+    - Work in Linux-based environments with basic AWS and MongoDB knowledge
 
-# 🧠 Evaluate match
-result = shortlister.evaluate(resume_text, jd_clean, resume_skills, jd_skills)
-
-# 📤 Output
-print("\n✅ Shortlist Result:\n")
-print(result)
+    ✅ Required Skills:
+    - Programming: Python, R, Java, C++
+    - Machine Learning: TensorFlow, Scikit-Learn
+    - Data Tools: Numpy, Pandas, Matplotlib
+    - Databases: SQL, basic MongoDB
+    - Cloud: Basic AWS
+    - OS: Linux, Windows, Mac
+    - Soft Skills: Problem Solving, Team Work, Communication
+    - Internship or project experience in AI-based GHG
+    """
+    result = process_resume(resume_file, jd_text)
+    print("\n✅ Shortlist Result:\n")
+    print(result)
