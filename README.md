@@ -154,9 +154,3 @@ By default, it runs at: `http://localhost:5000`
 
 ---
 
-## 🙌 Contributing
-
-PRs are welcome for:
-- UI frontend (e.g., Streamlit)
-- Enhanced JD parsing
-- Bulk resume ranking
